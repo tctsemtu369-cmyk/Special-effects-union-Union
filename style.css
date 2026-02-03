@@ -162,6 +162,11 @@ ul {
     padding: 8px 20px;
     border-radius: 4px;
     color: var(--white);
+    text-decoration: none;
+}
+
+.main-nav a.btn-contact::after {
+    display: none;
 }
 
 .btn-contact:hover {
