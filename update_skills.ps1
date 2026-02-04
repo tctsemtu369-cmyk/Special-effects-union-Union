@@ -1,72 +1,45 @@
-$files = @(
-    "c:\Users\USER\OneDrive\Desktop\tctsemtu site\konda.html",
-    "c:\Users\USER\OneDrive\Desktop\tctsemtu site\srinivas.html",
-    "c:\Users\USER\OneDrive\Desktop\tctsemtu site\aravindh.html",
-    "c:\Users\USER\OneDrive\Desktop\tctsemtu site\sanjeev.html",
-    "c:\Users\USER\OneDrive\Desktop\tctsemtu site\suresh_babu.html",
-    "c:\Users\USER\OneDrive\Desktop\tctsemtu site\murtuza_kamal.html",
-    "c:\Users\USER\OneDrive\Desktop\tctsemtu site\veerandranath.html",
-    "c:\Users\USER\OneDrive\Desktop\tctsemtu site\b_balakrishna.html",
-    "c:\Users\USER\OneDrive\Desktop\tctsemtu site\j_suresh.html",
-    "c:\Users\USER\OneDrive\Desktop\tctsemtu site\paramesh.html",
-    "c:\Users\USER\OneDrive\Desktop\tctsemtu site\rajendra_prasad.html",
-    "c:\Users\USER\OneDrive\Desktop\tctsemtu site\srinivasa_rao.html",
-    "c:\Users\USER\OneDrive\Desktop\tctsemtu site\naveen_kumar.html",
-    "c:\Users\USER\OneDrive\Desktop\tctsemtu site\sai_babu.html",
-    "c:\Users\USER\OneDrive\Desktop\tctsemtu site\pavan.html",
-    "c:\Users\USER\OneDrive\Desktop\tctsemtu site\santhosh.html",
-    "c:\Users\USER\OneDrive\Desktop\tctsemtu site\suresh_kumar.html",
-    "c:\Users\USER\OneDrive\Desktop\tctsemtu site\chandra_mohan.html"
-)
+$directory = "c:\Users\USER\OneDrive\Desktop\tctsemtu site"
+$newSkillsHtml = '<ul style="margin: 0; padding-left: 20px;">
+                                                    <li>Mechanical Effects</li>
+                                                    <li>Fire Effects</li>
+                                                    <li>Special Effects</li>
+                                                </ul>'
 
-$newSkills = @"
-                                                <ul style="margin: 0; padding-left: 20px;">
-                                                    <li>Pyrotechnics & Fire Effects</li>
-                                                    <li>Atmospheric Effects (Fog, Wind)</li>
-                                                    <li>Mechanical Rigs & Engineering</li>
-                                                    <li>Safety Protocols</li>
-                                                </ul>
-"@
+$files = Get-ChildItem -Path $directory -Filter "*.html"
 
 foreach ($file in $files) {
-    if (Test-Path $file) {
-        try {
-            $content = Get-Content -Path $file -Raw -Encoding UTF8
+    if ($file.Name -eq "technicians.html" -or $file.Name -eq "masters.html") { continue }
+
+    $content = Get-Content -Path $file.FullName -Raw -Encoding UTF8
+
+    # Check if it's a Technician profile (Has T-XXX)
+    if ($content -match "Union Card No[\s\S]*?T-\d{3}") {
+        
+        # Regex to find the Professional Skills list
+        # We look for the ul inside the Professional Skills section
+        # NOTE: PowerShell regex is similar to .NET
+        $pattern = '(?s)(Professional Skills.*?<td[^>]*>.*?)(<ul\s+style="margin:\s*0;\s*padding-left:\s*20px;">.*?</ul>)'
+        
+        if ($content -match $pattern) {
+            # $matches[0] is full match, $matches[1] is prefix, $matches[2] is the UL
+            # But direct replacement is easier if we just match the UL part in context or simply find-replace if unique enough
             
-            # Pattern: locate "Professional Skills", then the next <td> containing the list
-            # We want to replace the content of that <td>...</td> 
-            # or specifically the <ul>...</ul> inside it
+            # Let's try to replace the specific UL block if it follows Professional Skills
+            # Using -replace operator with callback is tricky in older PS, so we use dotnet objects or just simple split/join if pattern is robust
             
-            # Regex Explanation:
-            # Professional Skills\s*</td>       -> Matches label cell end
-            # \s*<td[^>]*>:\s*</td>             -> Matches separator cell (: cell)
-            # \s*<td[^>]*>\s*                   -> Matches start of content cell
-            # (<ul.*?</ul>)                     -> Matches the unordered list (Target Group 1)
-            
-            # However, simpler might be to just find the row with "Professional Skills" and replace the whole UL block inside it.
-            
-            $pattern = '(?s)(Professional Skills\s*</td>\s*<td[^>]*>:\s*</td>\s*<td[^>]*>\s*)<ul.*?>.*?</ul>'
-            
-            if ($content -match $pattern) {
-                # We want to keep the prefix (Group 1) and replace the rest with $newSkills
-                
-                # PowerShell -replace operator uses regex substitution.
-                # $1 refers to capture group 1.
-                
-                $newContent = $content -replace $pattern, ('${1}' + $newSkills)
-                
-                Set-Content -Path $file -Value $newContent -Encoding UTF8
-                Write-Host "Updated $file"
+            # Robust approach: match the specific block
+            $newContent = $content -replace '(?s)(Professional Skills[\s\S]*?<td[^>]*>[\s\S]*?)(<ul\s+style="margin:\s*0;\s*padding-left:\s*20px;">[\s\S]*?</ul>)', ('${1}' + $newSkillsHtml)
+             
+            if ($newContent -ne $content) {
+                $newContent | Set-Content -Path $file.FullName -Encoding UTF8
+                Write-Host "Updated $($file.Name)"
             }
             else {
-                Write-Host "Pattern not found in $file"
+                Write-Host "Skipping $($file.Name) (no change needed)"
             }
         }
-        catch {
-            Write-Host "Error processing $file : $_"
+        else {
+            Write-Host "Pattern not found in $($file.Name)"
         }
-    }
-    else {
-        Write-Host "File not found: $file"
     }
 }
